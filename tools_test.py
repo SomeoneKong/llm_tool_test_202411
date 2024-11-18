@@ -218,7 +218,7 @@ async def test_one_run(
 
     tool_call_info_list = total_chunk.tool_calls
     if tool_call_info_list is None or len(tool_call_info_list) == 0:
-        raise NoToolCallError('no tool call', message_list)
+        raise NoToolCallError('no tool call', dump_message_list)
 
     tool_call_result_list = []
     try:
@@ -227,7 +227,7 @@ async def test_one_run(
             # print(f'tool_call: {tool_call}')
 
             if tool_call.tool_name != 'calc_topic_token_batch':
-                raise BadToolCallArgsError(f'tool name error, got {tool_call.tool_name}', message_list)
+                raise BadToolCallArgsError(f'tool name error, got {tool_call.tool_name}', dump_message_list)
 
             arguments = json.loads(tool_call.tool_args_json)
             topic_list = arguments['topic_list']
@@ -249,7 +249,7 @@ async def test_one_run(
             })
     except Exception as e:
         traceback.print_exc()
-        raise BadToolCallArgsError(str(e), message_list) from e
+        raise BadToolCallArgsError(str(e), dump_message_list) from e
 
     if 'claude' in model_name:
         content_list = []
@@ -264,7 +264,7 @@ async def test_one_run(
             'content': content_list
         })
         dump_message_list.append(message_list[-1])
-    elif isinstance(client, GoogleVertexAI_Client):
+    elif isinstance(client, GoogleVertexAI_Client) or isinstance(client, Gemini_Client):
         content_list = []
         for tool_call_result in tool_call_result_list:
             content_list.append({
@@ -312,10 +312,12 @@ async def test_main():
     # client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-5-sonnet-20241022", 'anthropic-claude-3-5-sonnet-20241022'
     client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-5-haiku-20241022", 'anthropic-claude-3-5-haiku'
     
-    # client, model_name, output_dir_model_name = GeminiOpenAI_Client(), "gemini-1.5-pro", 'gemini-1-5-pro-openai'
-    # client, model_name, output_dir_model_name = Gemini_Client(), "gemini-1.5-pro", 'gemini-1-5-pro'
-    # client, model_name, output_dir_model_name = GoogleVertexAI_Client(), "gemini-1.5-pro", 'gemini-1-5-pro'
-    # client, model_name, output_dir_model_name = GoogleVertexAI_Client(), "gemini-1.5-flash", 'gemini-1-5-flash'
+    ### client, model_name, output_dir_model_name = GeminiOpenAI_Client(), "gemini-1.5-pro", 'gemini-1-5-pro-openai'
+    ### client, model_name, output_dir_model_name = GeminiOpenAI_Client(), "gemini-1.5-flash", 'gemini-1-5-flash-openai'
+    client, model_name, output_dir_model_name = Gemini_Client(), "gemini-1.5-pro", 'gemini-1-5-pro-genai'
+    # client, model_name, output_dir_model_name = Gemini_Client(), "gemini-1.5-flash", 'gemini-1-5-flash-genai'
+    ### client, model_name, output_dir_model_name = GoogleVertexAI_Client(), "gemini-1.5-pro", 'gemini-1-5-pro'
+    ### client, model_name, output_dir_model_name = GoogleVertexAI_Client(), "gemini-1.5-flash", 'gemini-1-5-flash'
 
     # client, model_name, output_dir_model_name = Alibaba_Client(), "qwen2.5-72b-instruct", 'qwen2-5-72b'
     # client, model_name, output_dir_model_name = Alibaba_Client(), "qwen2.5-32b-instruct", 'qwen2-5-32b'

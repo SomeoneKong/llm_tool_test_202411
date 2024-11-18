@@ -15,6 +15,8 @@ from typing import List
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold, Tool, ContentDict
 from google.generativeai import protos
+from google.generativeai.types import ContentDict
+from google.generativeai.types.content_types import to_part, to_content
 import PIL.Image
 
 # config from .env
@@ -29,11 +31,13 @@ class Gemini_Client(LlmClientBase):
 
     server_location = 'west'
 
-    def __init__(self):
+    def __init__(self, auto_break_on_first_tool_call: bool = True):
         super().__init__()
 
         api_key = os.getenv('GOOGLE_API_KEY')
         assert api_key is not None
+        
+        self.auto_break_on_first_tool_call = auto_break_on_first_tool_call
 
         genai.configure(api_key=api_key)
 
@@ -257,29 +261,31 @@ class Gemini_Client(LlmClientBase):
         for m in history:
             if isinstance(m, dict) and m['role'] == 'system':
                 continue
-
-            if isinstance(m, Content):
+            
+            if type(m).__name__ == 'Content':
                 message_list.append(m)
-            else:
-                role = self.role_convert_from_openai(m['role'])
-                if isinstance(m['content'], str):
-                    message = Content(parts=[Part.from_text(m['content'])], role=role)
-                elif m['role'] == 'tool':
-                    parts = [
-                        Part.from_function_response(
-                            name=tool_result['tool_name'],
-                            response={
+                continue
+            
+            role = self.role_convert_from_openai(m['role'])
+            if isinstance(m['content'], str):
+                message = ContentDict(parts=[to_part(m['content'])], role=role)
+            elif m['role'] == 'tool':
+                parts = [
+                    to_part({
+                        "function_response": {
+                            'name': tool_result['tool_name'],
+                            'response': {
                                 'content': tool_result['content'],
                             }
-                        )
-                        for tool_result in m['content']
-                    ]
-                    message = Content(parts=parts, role=role)
-                else:
-                    raise ValueError(f'unknown content type: {type(m["content"]).__name__}')
-                
-                message_list.append(message)
-            # print(f'message: {message_list[-1]}')
+                        }
+                    })
+                    for tool_result in m['content']
+                ]
+                message = ContentDict(parts=parts, role=role)
+            else:
+                raise ValueError(f'unknown content type: {type(m["content"]).__name__}')
+            
+            message_list.append(message)
         
         start_time = time.time()
 
@@ -295,12 +301,6 @@ class Gemini_Client(LlmClientBase):
                 tools.append(genai.protos.Tool(
                     function_declarations=[function_declaration],
                 ))
-        if tools:
-            tool_config = {
-                'function_calling_config': {
-                    'mode': 'ANY',
-                },
-            }
 
         response_message = await model.generate_content_async(
             message_list,
@@ -310,6 +310,7 @@ class Gemini_Client(LlmClientBase):
             tool_config=tool_config,
             stream=False
         )
+        
         response = type(response_message).to_dict(response_message)
         # print(f'response: {response}')
 
@@ -321,6 +322,19 @@ class Gemini_Client(LlmClientBase):
         function_call_info_list = []
 
         assert len(response['candidates']) > 0, f'No candidates in response'
+
+        # break on first tool call
+        if self.auto_break_on_first_tool_call:
+            first_tool_call_part_idx = None
+            for part_idx, part in enumerate(response['candidates'][0]['content']['parts']):
+                if part.get('function_call'):
+                    first_tool_call_part_idx = part_idx
+                    break
+            if first_tool_call_part_idx is not None and first_tool_call_part_idx < len(response['candidates'][0]['content']['parts']) - 1:
+                drop_num = len(response['candidates'][0]['content']['parts']) - first_tool_call_part_idx
+                print(f'drop {drop_num} parts after first tool call')
+                response['candidates'][0]['content']['parts'] = response['candidates'][0]['content']['parts'][:first_tool_call_part_idx+1]
+                response_message.candidates[0].content.parts = response_message.candidates[0].content.parts[:first_tool_call_part_idx+1]
 
         raw_response_message = response_message.candidates[0].content
         raw_response_message_obj = response['candidates'][0]['content']
