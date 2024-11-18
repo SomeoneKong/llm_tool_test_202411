@@ -183,7 +183,7 @@ async def test_one_run(
         'temperature': temperature,
         'tools': tools,
         # 'tool_choice': "auto",
-        'max_tokens': 4096,
+        # 'max_tokens': 4096,
     }
     if max_tokens:
         model_param['max_tokens'] = max_tokens
