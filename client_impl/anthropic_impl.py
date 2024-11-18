@@ -5,6 +5,8 @@ from llm_client_base import *
 
 # pip install anthropic
 import anthropic
+from anthropic.types import *
+from anthropic.lib.streaming._types import *
 
 # config from .env
 # ANTHROPIC_API_KEY
@@ -45,6 +47,7 @@ class Anthropic_Client(LlmClientBase):
         if input_tools:
             for tool in input_tools:
                 tool = tool['function']
+                tool = {**tool}
                 parameters = tool.pop('parameters', None)
                 assert parameters is not None, 'tools parameters is required'
                 tool['input_schema'] = parameters
@@ -56,6 +59,9 @@ class Anthropic_Client(LlmClientBase):
         current_message = None
         start_time = time.time()
         first_token_time = None
+        
+        content_part_list = []
+        message_stop_event = None
         async with self.client.messages.stream(
                 model=model_name,
                 messages=message_list,
@@ -64,37 +70,86 @@ class Anthropic_Client(LlmClientBase):
                 max_tokens=max_tokens,
                 tools=tools,
         ) as stream:
-            async for delta in stream.__stream_text__():
-                current_message = stream.current_message_snapshot
+            async for event in stream:
+                delta = None
+                if isinstance(event, MessageStartEvent):
+                    continue
+                elif isinstance(event, ContentBlockStartEvent):
+                    content_part_list.append(event.content_block)
+                    continue
+                elif isinstance(event, ContentBlockStopEvent):
+                    content_part_list[-1] = event.content_block
+                    if isinstance(event.content_block, TextBlock):
+                        continue
+                    else:
+                        # ToolUseBlock，跟结束时候一起返回
+                        pass
+                elif isinstance(event, TextEvent):
+                    content_part_list[-1].text += event.text
+                    delta = event.text
+                elif isinstance(event, ContentBlockDeltaEvent):
+                    if isinstance(event.delta, TextBlock):
+                        content_part_list[-1].text += event.delta.text
+                        delta = event.delta.text
+                    elif isinstance(event.delta, InputJSONDelta):
+                        # 丢弃tool call时候的中间event
+                        continue
+                elif isinstance(event, InputJsonEvent):
+                    continue
+                elif isinstance(event, RawMessageDeltaEvent):
+                    continue
+                elif isinstance(event, MessageStopEvent):
+                    message_stop_event = event
+                    continue
+                else:
+                    raise Exception(f'unsupported chunk type: {event}')
+                
                 if delta and first_token_time is None:
                     first_token_time = time.time()
                 
-                for content in current_message.content:
-                    content_type = content.type
-                    if content_type == 'text':
-                        content_text = content.text
-
-                        yield LlmResponseChunk(
-                            role=current_message.role,
-                            delta_content=delta,
-                            accumulated_content=content_text,
-                        )
-                    elif content_type == 'tool_use':
-                        print(content)
-                        # TODO: 处理工具调用 https://docs.anthropic.com/en/docs/build-with-claude/tool-use
+                if delta:
+                    yield LlmResponseChunk(
+                        role='assistant',
+                        delta_content=delta,
+                        accumulated_content=content_part_list[-1].text,
+                    )
 
         completion_time = time.time()
 
+        total_message = message_stop_event.message
+        
+        result_text = ''
+        tool_use_list = []
+        for content_block in total_message.content:
+            if content_block.type == 'text':
+                result_text += content_block.text
+            elif content_block.type == 'tool_use':
+                tool_use_list.append(LlmToolCallInfo(
+                    tool_call_id=content_block.id,
+                    tool_name=content_block.name,
+                    tool_args_json=json.dumps(content_block.input, ensure_ascii=False),
+                ))
+            else:
+                raise Exception(f'unsupported content type: {content_block.type}')
+
         usage = {
-            'prompt_tokens': current_message.usage.input_tokens,
-            'completion_tokens': current_message.usage.output_tokens,
+            'prompt_tokens': total_message.usage.input_tokens,
+            'completion_tokens': total_message.usage.output_tokens,
         }
 
+        raw_response_message = {
+            'role': total_message.role,
+            'content': total_message.content,
+        }
+        
         yield LlmResponseTotal(
-            role=current_message.role,
-            accumulated_content=current_message.content[0].text,
-            finish_reason=current_message.stop_reason,
-            real_model=current_message.model,
+            role=total_message.role,
+            accumulated_content=result_text,
+            tool_calls=tool_use_list,
+            finish_reason=total_message.stop_reason,
+            raw_response_message=raw_response_message,
+            raw_response_message_obj=total_message.model_dump(),
+            real_model=total_message.model,
             usage=usage,
             first_token_time=first_token_time - start_time if first_token_time else None,
             completion_time=completion_time - start_time,
