@@ -69,6 +69,9 @@ class OpenAI_Client(LlmClientBase):
 
         return req_args, model_param, client_param
 
+    async def chat_response_callback(self, response: ChatCompletion):
+        return response
+    
     async def chat_async(self, model_name, history, model_param, client_param):
         req_args, left_model_param, left_client_param = self._extract_args(model_name, model_param, client_param)
         req_args['messages'] = history
@@ -81,8 +84,7 @@ class OpenAI_Client(LlmClientBase):
         start_time = time.time()
 
         response: ChatCompletion = await self.client.chat.completions.create(**req_args)
-        if not response.choices:
-            print(f'no choices, {response}')
+        response = await self.chat_response_callback(response)
 
         choice0 = response.choices[0]
         message = choice0.message

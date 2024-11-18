@@ -194,6 +194,7 @@ async def test_one_run(
     ]
     try:
         total_chunk = await client.chat_async(model_name, message_list, model_param, client_param={})
+        assert total_chunk.accumulated_content or total_chunk.tool_calls, f'{model_name} no content or tool call, {total_chunk}'
     except SensitiveBlockError as e:
         raise
     except Exception as e:
@@ -262,7 +263,8 @@ async def test_one_run(
             'role': 'user',
             'content': content_list
         })
-    elif 'gemini' in model_name:
+        dump_message_list.append(message_list[-1])
+    elif False and 'gemini' in model_name:
         content_list = []
         for tool_call_result in tool_call_result_list:
             content_list.append({
@@ -274,6 +276,7 @@ async def test_one_run(
             'role': 'tool',
             'content': content_list
         })
+        dump_message_list.append(message_list[-1])
     else:
         for tool_call_result in tool_call_result_list:
             message_list.append({
@@ -281,10 +284,11 @@ async def test_one_run(
                 'tool_call_id': tool_call_result['tool_call_id'],
                 'content': json.dumps(tool_call_result['result'], ensure_ascii=False),
             })
-    dump_message_list.append(message_list[-1])
+            dump_message_list.append(message_list[-1])
 
     try:
         total_chunk = await client.chat_async(model_name, message_list, model_param, client_param={})
+        assert total_chunk.accumulated_content or total_chunk.tool_calls, f'{model_name} no content or tool call, {total_chunk}'
     except SensitiveBlockError as e:
         raise
     except Exception as e:

@@ -17,9 +17,13 @@ else:
 
 from llm_client_base import *
 
+from openai.types.chat.chat_completion import ChatCompletion
 # config from .env
 # GOOGLE_API_KEY
 
+
+class ResponseNoChoices(Exception):
+    pass
 
 class GeminiOpenAI_Client(OpenAI_Client):
     support_system_message: bool = True
@@ -33,6 +37,26 @@ class GeminiOpenAI_Client(OpenAI_Client):
             api_base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
             api_key=api_key,
         )
+    
+    async def chat_response_callback(self, response: ChatCompletion):
+        if not response.choices:
+            raise ResponseNoChoices(f'no choices, {response}')
+        return response
+    
+    async def chat_async(self, model_name, history, model_param, client_param={}):
+        for retry in range(3):
+            try:
+                response = await super().chat_async(model_name, history, model_param, client_param)
+                if not response.accumulated_content or response.tool_calls:
+                    print(f'{model_name} has no content or tool call, retry {retry}')
+                    continue
+                return response
+            except ResponseNoChoices as e:
+                if retry == 2:
+                    raise
+                print(f'{model_name} no choices, retry {retry}')
+            
+        return None
 
 if __name__ == '__main__':
     import asyncio
