@@ -291,6 +291,11 @@ class GoogleVertexAI_Client(LlmClientBase):
                 'google_search_results': grounding_results
             }
         )
+    
+    async def chat_async(self, model_name, history, model_param, client_param):
+        async for chunk in self.chat_stream_async(model_name, history, model_param, client_param):
+            total_chunk = chunk
+        return total_chunk
         
 
 

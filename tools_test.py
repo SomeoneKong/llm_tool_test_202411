@@ -264,7 +264,7 @@ async def test_one_run(
             'content': content_list
         })
         dump_message_list.append(message_list[-1])
-    elif False and 'gemini' in model_name:
+    elif isinstance(client, GoogleVertexAI_Client):
         content_list = []
         for tool_call_result in tool_call_result_list:
             content_list.append({
