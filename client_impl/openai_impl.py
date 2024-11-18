@@ -125,7 +125,9 @@ class OpenAI_Client(LlmClientBase):
                 tool_args_json=function_call_args.get('arguments', None),
             ))
 
-        usage = response.usage.model_dump()
+        usage = {}
+        if response.usage:
+            usage = response.usage.model_dump()
         if usage.get('completion_tokens_details') and 'reasoning_tokens' in usage['completion_tokens_details']:
             usage['completion_tokens_details']['response_tokens'] = usage['completion_tokens'] - (usage['completion_tokens_details']['reasoning_tokens'] or 0)
 

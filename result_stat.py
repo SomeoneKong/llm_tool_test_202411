@@ -2,6 +2,9 @@
 import os
 import json
 import collections
+import traceback
+from pydantic import BaseModel
+from typing import Optional
 
 sample_data_dir = 'test_data_topic_split'
 
@@ -50,6 +53,113 @@ def stat_sensitive_data():
         print(f'{sample_name}: {model_list}')
 
 
-if __name__ == '__main__':
-    stat_sensitive_data()
+class ToolCallFunction(BaseModel):
+    name: str
+    arguments: str
 
+class ToolCall(BaseModel):
+    id: Optional[str]
+    type: str
+    function: Optional[ToolCallFunction]
+
+
+def check_args(args_str, sample_data):
+
+    block_token_dict = {}
+    for block in sample_data['block_list']:
+        idx = block['block_idx']
+        token_num = block['token_num']
+        block_token_dict[idx] = token_num
+    
+    try:
+        args_obj = json.loads(args_str)
+        topic_list = args_obj['topic_list']
+        result_list = []
+        for topic in topic_list:
+            topic_id = int(topic['topic_id'])
+            start_block_idx = int(topic['start_block_idx'])
+            last_block_idx = int(topic['last_block_idx'])
+            token_num = 0
+            for block_idx in range(start_block_idx, last_block_idx + 1):
+                token_num += block_token_dict[block_idx]
+            result_list.append({
+                'topic_id': topic_id,
+                'token_num': token_num,
+            })
+    except Exception as e:
+        traceback.print_exc()
+        return False
+    return True
+
+
+def stat_one_model(result_root_dir):
+    result_file_list = os.listdir(result_root_dir)
+    
+    result_type_stat = collections.defaultdict(int)
+    sensitive_counter = 0
+    for file_name in result_file_list:
+        base_name = file_name.split('.')[0]
+        sample_name = base_name.rsplit('_', 1)[0]
+        
+        sample_data = json.load(open(os.path.join(sample_data_dir, f'{sample_name}.json'), 'r', encoding='utf-8'))
+        
+        
+        result_obj = json.load(open(os.path.join(result_root_dir, file_name), 'r', encoding='utf-8'))
+        if result_obj['ex_type'] == 'SensitiveBlockError':
+            sensitive_counter += 1
+        if result_obj['ex_type'] == 'BadToolCallArgsError':
+            for tool_call in result_obj['message_list'][1]['tool_calls']:
+                if tool_call['function']['name'] != 'calc_topic_token_batch':
+                    print(f'tool call name error in {file_name}: {tool_call["function"]["name"]}')
+                check_args(tool_call["function"]['arguments'], sample_data)
+        if result_obj['ex_type'] is not None:
+            result_type_stat[result_obj['ex_type']] += 1
+            print(f'{file_name} has error: {result_obj["ex_type"]}')
+            continue
+        
+        # check no pre thinking
+        answer1 = result_obj['message_list'][1]['content'] or ''
+        if len(answer1.split('\n')) <= 1:
+            print(f'no pre thinking in {file_name}')
+            result_type_stat['no_pre_thinking'] += 1
+            continue
+        
+        # check tool call topic uniqueness
+        tool_call_raw_list = result_obj['message_list'][1]['tool_calls']
+        tool_call_list = []
+        for tool_call_raw in tool_call_raw_list:
+            try:
+                tool_call = ToolCall.model_validate(tool_call_raw)
+                tool_call_list.append(tool_call)
+            except Exception as e:
+                print(f'tool call error in {file_name}: {e}')
+                traceback.print_exc()
+                result_type_stat['__tool_call_structure_error'] += 1
+                continue
+        
+        topic_counter_stat = collections.defaultdict(int)
+        for tool_call in tool_call_list:
+            args = json.loads(tool_call.function.arguments)
+            topic_obj = args['topic_list']
+            topic_key = json.dumps(topic_obj, ensure_ascii=False, sort_keys=True)
+            topic_counter_stat[topic_key] += 1
+        
+        for topic_key, topic_counter in topic_counter_stat.items():
+            if topic_counter > 1:
+                result_type_stat['topic_repeat'] += 1
+                break
+        
+        
+    success_num = len(result_file_list) - sum(result_type_stat.values())
+    print(f'{result_root_dir=}')
+    print(f'total_num: {len(result_file_list)}')
+    print(f'sensitive_num: {sensitive_counter}')
+    print(f'success_num: {success_num}')
+    print(dict(result_type_stat))
+    
+
+
+if __name__ == '__main__':
+    import sys
+    # stat_sensitive_data()
+    stat_one_model(sys.argv[1])
