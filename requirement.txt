@@ -1,0 +1,17 @@
+python-dotenv
+
+socksio
+aiohttp
+tiktoken
+openai
+google-generativeai
+google-cloud-aiplatform
+anthropic[vertex]
+baidu-bce-auth
+PyJWT  # 商汤鉴权使用
+reka-api
+mistralai
+together
+cohere
+pillow  # for Google image
+# spark-ai-python  # for VL
