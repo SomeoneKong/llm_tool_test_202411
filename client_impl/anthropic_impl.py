@@ -99,6 +99,75 @@ class Anthropic_Client(LlmClientBase):
             first_token_time=first_token_time - start_time if first_token_time else None,
             completion_time=completion_time - start_time,
         )
+    
+    async def chat_async(self, model_name, history, model_param, client_param):
+        model_param = model_param.copy()
+        temperature = model_param['temperature']
+        max_tokens = model_param.pop('max_tokens', 1024 * 8)  # 必选项
+        input_tools = model_param.pop('tools', None)
+
+        system_message_list = [m for m in history if m['role'] == 'system']
+        system_prompt = system_message_list[-1]['content'] if system_message_list else []
+
+        message_list = [m for m in history if m['role'] != 'system']
+
+        tools = []
+        if input_tools:
+            for tool in input_tools:
+                tool = tool['function']
+                tool = {**tool}
+                parameters = tool.pop('parameters', None)
+                assert parameters is not None, 'tools parameters is required'
+                tool['input_schema'] = parameters
+                tools.append(tool)
+        
+        if len(tools) == 0:
+            tools = None
+
+        start_time = time.time()
+        response = await self.client.messages.create(
+                model=model_name,
+                messages=message_list,
+                system=system_prompt,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                tools=tools,
+        )
+        content_block_list = response.content
+        result_text = ''
+        tool_use_list = []
+        for content_block in content_block_list:
+            if content_block.type == 'text':
+                result_text += content_block.text
+            elif content_block.type == 'tool_use':
+                tool_use_list.append(LlmToolCallInfo(
+                    tool_call_id=content_block.id,
+                    tool_name=content_block.name,
+                    tool_args_json=json.dumps(content_block.input, ensure_ascii=False),
+                ))
+            else:
+                raise Exception(f'unsupported content type: {content_block.type}')
+        
+        raw_response_message = {
+            'role': response.role,
+            'content': response.content,
+        }
+        
+        return LlmResponseTotal(
+            role=response.role,
+            accumulated_content=result_text,
+            tool_calls=tool_use_list,
+            finish_reason=response.stop_reason,
+            raw_response_message=raw_response_message,
+            raw_response_message_obj=response.model_dump(),
+            real_model=response.model,
+            usage={
+                'prompt_tokens': response.usage.input_tokens,
+                'completion_tokens': response.usage.output_tokens,
+            },
+            first_token_time=None,
+            completion_time=time.time() - start_time,
+        )
 
     async def close(self):
         await self.client.close()

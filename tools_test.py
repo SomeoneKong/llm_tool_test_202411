@@ -255,7 +255,7 @@ async def test_one_run(
         for tool_call_result in tool_call_result_list:
             content_list.append({
                 "type": "tool_result",
-                'tool_call_id': tool_call_result['tool_call_id'],
+                'tool_use_id': tool_call_result['tool_call_id'],
                 'content': json.dumps(tool_call_result['result'], ensure_ascii=False),
             })
         message_list.append({
@@ -301,8 +301,13 @@ async def test_one_run(
 async def test_main():
     client, model_name, output_dir_model_name = OpenRouter_Client(), "gpt-4o", 'openrouter-gpt-4o'
     # client, model_name, output_dir_model_name = OpenRouter_Client(), "gpt-4o-mini", 'openrouter-gpt-4o-mini'
+    
     # client, model_name, output_dir_model_name = OpenRouter_Client(), "anthropic/claude-3.5-sonnet", 'openrouter-claude-3-5-sonnet'  # 会卡死在第二步不返回
     # client, model_name, output_dir_model_name = OpenRouter_Client(), "anthropic/claude-3-5-haiku", 'openrouter-claude-3-5-haiku'  # 会卡死在第二步不返回
+    
+    # client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-5-sonnet-20241022", 'anthropic-claude-3-5-sonnet-20241022'
+    client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-5-haiku-20241022", 'anthropic-claude-3-5-haiku'
+    
     # client, model_name, output_dir_model_name = GeminiOpenAI_Client(), "gemini-1.5-pro", 'gemini-1-5-pro-openai'
     # client, model_name, output_dir_model_name = Gemini_Client(), "gemini-1.5-pro", 'gemini-1-5-pro'
     # client, model_name, output_dir_model_name = GoogleVertexAI_Client(), "gemini-1.5-pro", 'gemini-1-5-pro'
