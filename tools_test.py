@@ -44,6 +44,8 @@ class BadToolCallArgsError(ErrorWithMessageList):
 class RequestError(Exception):
     pass
 
+class GeminiMalformedFunctionCallError(ErrorWithMessageList):
+    pass
 
 async def handle_stream(async_iter):
     async for chunk in async_iter:
@@ -198,6 +200,8 @@ async def test_one_run(
     except SensitiveBlockError as e:
         raise
     except Exception as e:
+        if 'MALFORMED_FUNCTION_CALL' in str(e):
+            raise GeminiMalformedFunctionCallError(str(e), message_list) from e
         traceback.print_exc()
         raise RequestError() from e
     # print(f'stop reason: {total_chunk.finish_reason}')
@@ -292,6 +296,8 @@ async def test_one_run(
     except SensitiveBlockError as e:
         raise
     except Exception as e:
+        if 'MALFORMED_FUNCTION_CALL' in str(e):
+            raise GeminiMalformedFunctionCallError(str(e), dump_message_list) from e
         traceback.print_exc()
         raise RequestError() from e
 
@@ -310,14 +316,10 @@ async def test_main():
     # client, model_name, output_dir_model_name = OpenRouter_Client(), "anthropic/claude-3-5-haiku", 'openrouter-claude-3-5-haiku'  # 会卡死在第二步不返回
     
     # client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-5-sonnet-20241022", 'anthropic-claude-3-5-sonnet-20241022'
-    client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-5-haiku-20241022", 'anthropic-claude-3-5-haiku'
+    # client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-5-haiku-20241022", 'anthropic-claude-3-5-haiku'
     
-    ### client, model_name, output_dir_model_name = GeminiOpenAI_Client(), "gemini-1.5-pro", 'gemini-1-5-pro-openai'
-    ### client, model_name, output_dir_model_name = GeminiOpenAI_Client(), "gemini-1.5-flash", 'gemini-1-5-flash-openai'
-    client, model_name, output_dir_model_name = Gemini_Client(), "gemini-1.5-pro", 'gemini-1-5-pro-genai'
+    # client, model_name, output_dir_model_name = Gemini_Client(), "gemini-1.5-pro", 'gemini-1-5-pro-genai'
     # client, model_name, output_dir_model_name = Gemini_Client(), "gemini-1.5-flash", 'gemini-1-5-flash-genai'
-    ### client, model_name, output_dir_model_name = GoogleVertexAI_Client(), "gemini-1.5-pro", 'gemini-1-5-pro'
-    ### client, model_name, output_dir_model_name = GoogleVertexAI_Client(), "gemini-1.5-flash", 'gemini-1-5-flash'
 
     # client, model_name, output_dir_model_name = Alibaba_Client(), "qwen2.5-72b-instruct", 'qwen2-5-72b'
     # client, model_name, output_dir_model_name = Alibaba_Client(), "qwen2.5-32b-instruct", 'qwen2-5-32b'

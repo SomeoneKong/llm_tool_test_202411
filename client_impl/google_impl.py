@@ -322,6 +322,8 @@ class Gemini_Client(LlmClientBase):
         function_call_info_list = []
 
         assert len(response['candidates']) > 0, f'No candidates in response'
+        if 'content' not in response['candidates'][0]:
+            raise Exception(f'No content in response, finish reason: {response_message.candidates[0].finish_reason.name}')
 
         # break on first tool call
         if self.auto_break_on_first_tool_call:

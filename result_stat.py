@@ -96,6 +96,7 @@ def stat_one_model(result_root_dir):
     result_file_list = os.listdir(result_root_dir)
     
     is_claude = 'claude' in result_root_dir
+    is_gemini = 'gemini' in result_root_dir
     
     result_type_stat = collections.defaultdict(int)
     sensitive_counter = 0
@@ -122,6 +123,8 @@ def stat_one_model(result_root_dir):
         # check no pre thinking
         if is_claude:
             answer1 = result_obj['message_list'][1]['content'][0]['text'] or ''
+        elif is_gemini:
+            answer1 = result_obj['message_list'][1]['parts'][0].get('text') or ''
         else:
             answer1 = result_obj['message_list'][1]['content'] or ''
             
@@ -140,6 +143,18 @@ def stat_one_model(result_root_dir):
                         function=ToolCallFunction(
                             name=content_block['name'],
                             arguments=json.dumps(content_block['input'], ensure_ascii=False),
+                        )
+                    )
+                    tool_call_list.append(tool_call)
+        elif is_gemini:
+            for part in result_obj['message_list'][1]['parts']:
+                if 'function_call' in part:
+                    tool_call = ToolCall(
+                        id=None,
+                        type='function',
+                        function=ToolCallFunction(
+                            name=part['function_call']['name'],
+                            arguments=json.dumps(part['function_call']['args'], ensure_ascii=False),
                         )
                     )
                     tool_call_list.append(tool_call)
