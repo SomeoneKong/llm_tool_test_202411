@@ -95,6 +95,8 @@ def check_args(args_str, sample_data):
 def stat_one_model(result_root_dir):
     result_file_list = os.listdir(result_root_dir)
     
+    is_claude = 'claude' in result_root_dir
+    
     result_type_stat = collections.defaultdict(int)
     sensitive_counter = 0
     for file_name in result_file_list:
@@ -118,25 +120,42 @@ def stat_one_model(result_root_dir):
             continue
         
         # check no pre thinking
-        answer1 = result_obj['message_list'][1]['content'] or ''
+        if is_claude:
+            answer1 = result_obj['message_list'][1]['content'][0]['text'] or ''
+        else:
+            answer1 = result_obj['message_list'][1]['content'] or ''
+            
         if len(answer1.split('\n')) <= 1:
             print(f'no pre thinking in {file_name}')
             result_type_stat['no_pre_thinking'] += 1
             continue
         
-        # check tool call topic uniqueness
-        tool_call_raw_list = result_obj['message_list'][1]['tool_calls']
         tool_call_list = []
-        for tool_call_raw in tool_call_raw_list:
-            try:
-                tool_call = ToolCall.model_validate(tool_call_raw)
-                tool_call_list.append(tool_call)
-            except Exception as e:
-                print(f'tool call error in {file_name}: {e}')
-                traceback.print_exc()
-                result_type_stat['__tool_call_structure_error'] += 1
-                continue
-        
+        if is_claude:
+            for content_block in result_obj['message_list'][1]['content'][1:]:
+                if content_block['type'] == 'tool_use':
+                    tool_call = ToolCall(
+                        id=content_block['id'],
+                        type='function',
+                        function=ToolCallFunction(
+                            name=content_block['name'],
+                            arguments=json.dumps(content_block['input'], ensure_ascii=False),
+                        )
+                    )
+                    tool_call_list.append(tool_call)
+        else:
+            # check tool call topic uniqueness
+            tool_call_raw_list = result_obj['message_list'][1]['tool_calls']
+            for tool_call_raw in tool_call_raw_list:
+                try:
+                    tool_call = ToolCall.model_validate(tool_call_raw)
+                    tool_call_list.append(tool_call)
+                except Exception as e:
+                    print(f'tool call error in {file_name}: {e}')
+                    traceback.print_exc()
+                    result_type_stat['__tool_call_structure_error'] += 1
+                    continue
+            
         topic_counter_stat = collections.defaultdict(int)
         for tool_call in tool_call_list:
             args = json.loads(tool_call.function.arguments)
