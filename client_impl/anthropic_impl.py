@@ -35,8 +35,14 @@ class Anthropic_Client(LlmClientBase):
     async def chat_stream_async(self, model_name, history, model_param, client_param):
         model_param = model_param.copy()
         temperature = model_param['temperature']
-        max_tokens = model_param.pop('max_tokens', 1024 * 3)  # 必选项
         input_tools = model_param.pop('tools', None)
+        max_tokens = model_param.pop('max_tokens', None)  # 必选项
+        if '3-5' in model_name:
+            max_tokens = max_tokens or 1024 * 8
+        elif '3-haiku' in model_name:
+            max_tokens = max_tokens or 1024 * 4
+        else:
+            max_tokens = max_tokens or 1024 * 3
 
         system_message_list = [m for m in history if m['role'] == 'system']
         system_prompt = system_message_list[-1]['content'] if system_message_list else []
@@ -56,7 +62,6 @@ class Anthropic_Client(LlmClientBase):
         if len(tools) == 0:
             tools = None
 
-        current_message = None
         start_time = time.time()
         first_token_time = None
         
@@ -158,8 +163,14 @@ class Anthropic_Client(LlmClientBase):
     async def chat_async(self, model_name, history, model_param, client_param):
         model_param = model_param.copy()
         temperature = model_param['temperature']
-        max_tokens = model_param.pop('max_tokens', 1024 * 8)  # 必选项
         input_tools = model_param.pop('tools', None)
+        max_tokens = model_param.pop('max_tokens', None)  # 必选项
+        if '3-5' in model_name:
+            max_tokens = max_tokens or 1024 * 8
+        elif '3-haiku' in model_name:
+            max_tokens = max_tokens or 1024 * 4
+        else:
+            max_tokens = max_tokens or 1024 * 3
 
         system_message_list = [m for m in history if m['role'] == 'system']
         system_prompt = system_message_list[-1]['content'] if system_message_list else []

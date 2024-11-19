@@ -111,7 +111,7 @@ def stat_one_model(result_root_dir):
         if result_obj['ex_type'] == 'SensitiveBlockError':
             sensitive_counter += 1
         if result_obj['ex_type'] == 'BadToolCallArgsError':
-            for tool_call in result_obj['message_list'][1]['tool_calls']:
+            for tool_call in result_obj['message_list'][1].get('tool_calls', []):
                 if tool_call['function']['name'] != 'calc_topic_token_batch':
                     print(f'tool call name error in {file_name}: {tool_call["function"]["name"]}')
                 check_args(tool_call["function"]['arguments'], sample_data)
@@ -122,7 +122,7 @@ def stat_one_model(result_root_dir):
         
         # check no pre thinking
         if is_claude:
-            answer1 = result_obj['message_list'][1]['content'][0]['text'] or ''
+            answer1 = result_obj['message_list'][1]['content'][0].get('text') or ''
         elif is_gemini:
             answer1 = result_obj['message_list'][1]['parts'][0].get('text') or ''
         else:
@@ -135,7 +135,7 @@ def stat_one_model(result_root_dir):
         
         tool_call_list = []
         if is_claude:
-            for content_block in result_obj['message_list'][1]['content'][1:]:
+            for content_block in result_obj['message_list'][1]['content']:
                 if content_block['type'] == 'tool_use':
                     tool_call = ToolCall(
                         id=content_block['id'],

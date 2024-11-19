@@ -316,7 +316,9 @@ async def test_main():
     # client, model_name, output_dir_model_name = OpenRouter_Client(), "anthropic/claude-3-5-haiku", 'openrouter-claude-3-5-haiku'  # 会卡死在第二步不返回
     
     # client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-5-sonnet-20241022", 'anthropic-claude-3-5-sonnet-20241022'
+    client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-5-sonnet-20240620", 'anthropic-claude-3-5-sonnet-20240620'
     # client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-5-haiku-20241022", 'anthropic-claude-3-5-haiku'
+    # client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-haiku-20240307", 'anthropic-claude-3-haiku'
     
     # client, model_name, output_dir_model_name = Gemini_Client(), "gemini-1.5-pro", 'gemini-1-5-pro-genai'
     # client, model_name, output_dir_model_name = Gemini_Client(), "gemini-1.5-flash", 'gemini-1-5-flash-genai'
