@@ -20,8 +20,9 @@ from client_impl.stepfun_impl import StepFun_Client
 from client_impl.baichuan_impl import Baichuan_Client
 from client_impl.bytedance_impl import ByteDance_Client
 from client_impl.baidu_impl import Baidu_Client
+from client_impl.minimax_impl import Minimax_Client
 from client_impl.tencent_openai_impl import TencentOpenAI_Client
-from client_impl.sensenova_openai_impl import SenseNovaOpenAI_Client
+from client_impl.sensenova_openai_impl import SenseNovaOpenAI_Client, SensenovaResponseInterpreterError
 from client_impl.xunfei_impl import Xunfei_Client
 
 from client_impl.openrouter_impl import OpenRouter_Client
@@ -199,6 +200,8 @@ async def test_one_run(
         assert total_chunk.accumulated_content or total_chunk.tool_calls, f'{model_name} no content or tool call, {total_chunk}'
     except SensitiveBlockError as e:
         raise
+    except SensenovaResponseInterpreterError as e:
+        raise
     except Exception as e:
         if 'MALFORMED_FUNCTION_CALL' in str(e):
             raise GeminiMalformedFunctionCallError(str(e), message_list) from e
@@ -295,6 +298,8 @@ async def test_one_run(
         assert total_chunk.accumulated_content or total_chunk.tool_calls, f'{model_name} no content or tool call, {total_chunk}'
     except SensitiveBlockError as e:
         raise
+    except SensenovaResponseInterpreterError as e:
+        raise
     except Exception as e:
         if 'MALFORMED_FUNCTION_CALL' in str(e):
             raise GeminiMalformedFunctionCallError(str(e), dump_message_list) from e
@@ -316,7 +321,7 @@ async def test_main():
     # client, model_name, output_dir_model_name = OpenRouter_Client(), "anthropic/claude-3-5-haiku", 'openrouter-claude-3-5-haiku'  # 会卡死在第二步不返回
     
     # client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-5-sonnet-20241022", 'anthropic-claude-3-5-sonnet-20241022'
-    client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-5-sonnet-20240620", 'anthropic-claude-3-5-sonnet-20240620'
+    # client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-5-sonnet-20240620", 'anthropic-claude-3-5-sonnet-20240620'
     # client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-5-haiku-20241022", 'anthropic-claude-3-5-haiku'
     # client, model_name, output_dir_model_name = Anthropic_Client(), "claude-3-haiku-20240307", 'anthropic-claude-3-haiku'
     
@@ -349,8 +354,11 @@ async def test_main():
     # client, model_name, output_dir_model_name = Baidu_Client(), "ernie-3.5-128k", 'ernie-3.5-128k'
 
     # client, model_name, output_dir_model_name = TencentOpenAI_Client(), "hunyuan-functioncall", 'hunyuan-functioncall'
+    
+    # client, model_name, output_dir_model_name = Minimax_Client(), "abab7-chat-preview", 'minimax-abab7-preview'
+    client, model_name, output_dir_model_name = Minimax_Client(), "abab6.5s-chat", 'minimax-abab6.5s'
 
-    # client, model_name, output_dir_model_name = SenseNovaOpenAI_Client(), "SenseChat-5", 'SenseChat-5'
+    # client, model_name, output_dir_model_name = SenseNovaOpenAI_Client(), "SenseChat-5", 'sensechat-5'
 
     # client, model_name, output_dir_model_name = Xunfei_Client(), "spark-max", 'spark-max'
     # client, model_name, output_dir_model_name = Xunfei_Client(), "spark-4.0", 'spark-4.0'
@@ -386,7 +394,8 @@ async def test_main():
             print(f'{file_basename} {test_idx}/{len(test_data_list)} {sample_idx}: request error, skip. {str(e)}')
             return
         except Exception as e:
-            if not isinstance(e, ErrorWithMessageList) and not isinstance(e, SensitiveBlockError):
+            known_ex_type_list = [ErrorWithMessageList, SensitiveBlockError, SensenovaResponseInterpreterError]
+            if not isinstance(e, tuple(known_ex_type_list)):
                 traceback.print_exc()
             print(f'{file_basename} {test_idx}/{len(test_data_list)} {sample_idx}: {type(e).__name__}')
             ex_type = type(e).__name__

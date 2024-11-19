@@ -19,6 +19,7 @@ else:
 
 from llm_client_base import *
 import openai
+from openai.types.chat.chat_completion import ChatCompletion
 
 # config from .env
 # SENSENOVA_KEY_ID
@@ -27,6 +28,9 @@ import openai
 # 模型列表
 # https://console.sensecore.cn/micro/help/docs/model-as-a-service/nova/overview/compatible-mode
 
+
+class SensenovaResponseInterpreterError(Exception):
+    pass
 
 def encode_jwt_token():
     ak = os.getenv('SENSENOVA_KEY_ID')
@@ -66,6 +70,20 @@ class SenseNovaOpenAI_Client(OpenAI_Client):
                 raise SensitiveBlockError() from e
 
             raise
+    
+    async def chat_response_callback(self, response: ChatCompletion):
+        # assert response.choices, f'No choices in response {response}'
+        # assert response.choices[0].message, f'No message in response {response}'
+        interpreter_list = []
+        if response.choices[0].message.tool_calls:
+            for tool_call in response.choices[0].message.tool_calls:
+                if tool_call.type == 'interpreter':
+                    interpreter_list.append(tool_call)
+                
+        if interpreter_list:
+            raise SensenovaResponseInterpreterError(interpreter_list[0].model_dump_json())
+        
+        return await super().chat_response_callback(response)
     
     async def chat_async(self, model_name, history, model_param, client_param):
         try:

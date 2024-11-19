@@ -5,13 +5,14 @@ import time
 import aiohttp
 import json
 
+from openai.types.chat.chat_completion import ChatCompletion
+
 from llm_client_base import *
 
 from .openai_impl import OpenAI_Client
 
 # config from .env
 # MINIMAX_API_KEY
-
 
 class Minimax_Client(OpenAI_Client):
     support_system_message: bool = True
@@ -31,21 +32,38 @@ class Minimax_Client(OpenAI_Client):
         self.group_id = os.getenv('MINIMAX_GROUP_ID')
         self.pro_api_key = api_key
 
-    async def chat_stream_async(self, model_name, history, model_param, client_param):
-        temp_model_param = model_param.copy()
+    def fix_model_param(self, model_param):
+        # deep copy
+        temp_model_param = json.loads(json.dumps(model_param))
+        
+        if temp_model_param['temperature'] is not None:
+            temp_model_param['temperature'] = max(0.01, temp_model_param['temperature'])
+            
         if 'max_tokens' not in temp_model_param:
-            temp_model_param['max_tokens'] = 2048  # 官方默认值为256，太短
+            temp_model_param['max_tokens'] = 1024*4  # 官方默认值为256，太短
+        
+        for tool in temp_model_param.get('tools', []):
+            tool['function']['parameters'] = json.dumps(tool['function']['parameters'])
+        
+        return temp_model_param
+    
+    async def chat_stream_async(self, model_name, history, model_param, client_param):
+        temp_model_param = self.fix_model_param(model_param)
 
         has_delta_chunk = False
 
-        async for chunk in super().chat_stream_async(model_name, history, model_param, client_param):
+        async for chunk in super().chat_stream_async(model_name, history, temp_model_param, client_param):
             if chunk.is_end:
                 assert has_delta_chunk, f"minimax return empty"
             else:
                 has_delta_chunk = True
 
             yield chunk
+    
+    async def chat_async(self, model_name, history, model_param, client_param):
+        temp_model_param = self.fix_model_param(model_param)
 
+        return await super().chat_async(model_name, history, temp_model_param, client_param)
     async def _chat_pro_stream_async(self, model_name, history, bot_profile_dict, model_param, client_param):
         model_param = model_param.copy()
         temperature = model_param.pop('temperature')

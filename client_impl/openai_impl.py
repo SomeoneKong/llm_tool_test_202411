@@ -85,6 +85,8 @@ class OpenAI_Client(LlmClientBase):
 
         response: ChatCompletion = await self.client.chat.completions.create(**req_args)
         response = await self.chat_response_callback(response)
+        
+        assert response.choices, f'No choices in response {response}'
 
         choice0 = response.choices[0]
         message = choice0.message
@@ -112,6 +114,7 @@ class OpenAI_Client(LlmClientBase):
                 ]
 
             for tool_call in message.tool_calls:
+                assert tool_call.function, f'No function in tool_call {tool_call}'
                 call_info = {
                     'id': tool_call.id,
                     'name': tool_call.function.name,
