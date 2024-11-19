@@ -6,6 +6,7 @@ import time
 from llm_client_base import *
 
 from mistralai import Mistral
+from mistralai.models import ChatCompletionResponse, ChatCompletionChoice
 
 # config from .env
 # MISTRAL_API_KEY
@@ -28,6 +29,7 @@ class Mistral_Client(LlmClientBase):
         model_param = model_param.copy()
         temperature = model_param.pop('temperature')
         max_tokens = model_param.pop('max_tokens', None)
+        tools = model_param.pop('tools', None)
 
         start_time = time.time()
 
@@ -36,6 +38,7 @@ class Mistral_Client(LlmClientBase):
             messages=history,
             temperature=temperature,
             max_tokens=max_tokens,
+            tools=tools,
         )
 
         role = None
@@ -54,7 +57,7 @@ class Mistral_Client(LlmClientBase):
             if choice0.finish_reason:
                 finish_reason = choice0.finish_reason
             if chunk.usage:
-                usage = chunk.usage.dict()
+                usage = chunk.usage.model_dump()
 
             result_buffer += choice0.delta.content
             # print(choice0.delta.content)
@@ -73,6 +76,55 @@ class Mistral_Client(LlmClientBase):
             finish_reason=finish_reason,
             usage=usage or {},
             first_token_time=first_token_time - start_time if first_token_time else None,
+            completion_time=completion_time - start_time,
+        )
+
+    async def chat_async(self, model_name, history, model_param, client_param):
+        model_param = model_param.copy()
+        temperature = model_param.pop('temperature')
+        max_tokens = model_param.pop('max_tokens', None)
+        tools = model_param.pop('tools', None)
+
+        start_time = time.time()
+
+        response: ChatCompletionResponse = await self.client.chat.complete_async(
+            model=model_name,
+            messages=history,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            tools=tools,
+        )
+
+        completion_time = time.time()
+
+        finish_reason = None
+        usage = None
+
+        choice0: ChatCompletionChoice = response.choices[0]
+
+        if choice0.finish_reason:
+            finish_reason = str(choice0.finish_reason)
+        if response.usage:
+            usage = response.usage.model_dump()
+
+        tool_call_args_result = []
+        for tool_call in choice0.message.tool_calls:
+            args_str = tool_call.function.arguments
+            if isinstance(args_str, dict):
+                args_str = json.dumps(args_str, ensure_ascii=False)
+            tool_call_args_result.append(LlmToolCallInfo(
+                tool_call_id=tool_call.id,
+                tool_name=tool_call.function.name,
+                tool_args_json=args_str,
+            ))
+
+        yield LlmResponseTotal(
+            role=choice0.message.role,
+            accumulated_content=choice0.message.content,
+            finish_reason=finish_reason,
+            tool_calls=tool_call_args_result if tool_call_args_result else None,
+            usage=usage or {},
+            first_token_time=None,
             completion_time=completion_time - start_time,
         )
 

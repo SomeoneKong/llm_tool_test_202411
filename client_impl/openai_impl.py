@@ -126,8 +126,8 @@ class OpenAI_Client(LlmClientBase):
         for function_call_args in function_call_info_list:
             tool_call_args_result.append(LlmToolCallInfo(
                 tool_call_id=function_call_args.get('id', None),
-                tool_name=function_call_args.get('name', None),
-                tool_args_json=function_call_args.get('arguments', None),
+                tool_name=function_call_args.get('name') or '',
+                tool_args_json=function_call_args.get('arguments') or '',
             ))
 
         usage = {}

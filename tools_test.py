@@ -26,6 +26,7 @@ from client_impl.sensenova_openai_impl import SenseNovaOpenAI_Client, SensenovaR
 from client_impl.xunfei_impl import Xunfei_Client
 
 from client_impl.openrouter_impl import OpenRouter_Client
+from client_impl.siliconflow_impl import SiliconFlow_Client
 
 
 class ErrorWithMessageList(Exception):
@@ -328,6 +329,8 @@ async def test_main():
     # client, model_name, output_dir_model_name = Gemini_Client(), "gemini-1.5-pro", 'gemini-1-5-pro-genai'
     # client, model_name, output_dir_model_name = Gemini_Client(), "gemini-1.5-flash", 'gemini-1-5-flash-genai'
 
+    client, model_name, output_dir_model_name = OpenRouter_Client(), "mistralai/mistral-large", 'openrouter-mistral-large-2411'
+
     # client, model_name, output_dir_model_name = Alibaba_Client(), "qwen2.5-72b-instruct", 'qwen2-5-72b'
     # client, model_name, output_dir_model_name = Alibaba_Client(), "qwen2.5-32b-instruct", 'qwen2-5-32b'
     # client, model_name, output_dir_model_name = Alibaba_Client(), "qwen2.5-14b-instruct", 'qwen2-5-14b'
@@ -356,7 +359,7 @@ async def test_main():
     # client, model_name, output_dir_model_name = TencentOpenAI_Client(), "hunyuan-functioncall", 'hunyuan-functioncall'
     
     # client, model_name, output_dir_model_name = Minimax_Client(), "abab7-chat-preview", 'minimax-abab7-preview'
-    client, model_name, output_dir_model_name = Minimax_Client(), "abab6.5s-chat", 'minimax-abab6.5s'
+    # client, model_name, output_dir_model_name = Minimax_Client(), "abab6.5s-chat", 'minimax-abab6.5s'
 
     # client, model_name, output_dir_model_name = SenseNovaOpenAI_Client(), "SenseChat-5", 'sensechat-5'
 
@@ -365,9 +368,16 @@ async def test_main():
     
     # client, model_name, output_dir_model_name = OpenRouter_Client(), "meta-llama/llama-3.1-405b-instruct|Fireworks", 'openrouter-llama-3-1-405b-Fireworks'
     # client, model_name, output_dir_model_name = OpenRouter_Client(), "meta-llama/llama-3.1-405b-instruct|Avian", 'openrouter-llama-3-1-405b-Avian'
-    client, model_name, output_dir_model_name = OpenRouter_Client(), "meta-llama/llama-3.1-405b-instruct|Lepton", 'openrouter-llama-3-1-405b-Lepton'
+    # client, model_name, output_dir_model_name = OpenRouter_Client(), "meta-llama/llama-3.1-405b-instruct|Lepton", 'openrouter-llama-3-1-405b-Lepton'
     # client, model_name, output_dir_model_name = OpenRouter_Client(), "meta-llama/llama-3.1-405b-instruct|Together", 'openrouter-llama-3-1-405b-Together'
-    parallel_num = 5
+    
+    # client, model_name, output_dir_model_name = OpenRouter_Client(), "meta-llama/llama-3.1-70b-instruct|Fireworks", 'openrouter-llama-3-1-70b-Fireworks'
+    # client, model_name, output_dir_model_name = OpenRouter_Client(), "meta-llama/llama-3.1-70b-instruct|Lepton", 'openrouter-llama-3-1-70b-Lepton'
+    # client, model_name, output_dir_model_name = OpenRouter_Client(), "meta-llama/llama-3.1-70b-instruct|Together", 'openrouter-llama-3-1-70b-Together'
+    
+    # client, model_name, output_dir_model_name = SiliconFlow_Client(), "meta-llama/Meta-Llama-3.1-70B-Instruct", 'siliconflow-llama-3-1-70b'
+    # client, model_name, output_dir_model_name = SiliconFlow_Client(), "Qwen/Qwen2.5-72B-Instruct", 'siliconflow-qwen2-5-72b'
+    
 
     sample_num = 1
 
