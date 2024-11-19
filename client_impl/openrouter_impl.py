@@ -13,6 +13,7 @@ else:
     import os
     from .openai_impl import OpenAI_Client
 
+import json
 
 # config from .env
 # OPENROUTER_API_KEY
@@ -36,19 +37,28 @@ class OpenRouter_Client(OpenAI_Client):
             api_base_url="https://openrouter.ai/api/v1/",
             api_key=api_key,
         )
-
-    async def chat_stream_async(self, model_name, history, model_param, client_param):
-        model_param_temp = model_param.copy()
+    
+    def update_model_param(self, model_name, model_param):
+        # deepcopy
+        model_param_temp = json.loads(json.dumps(model_param))
+        
         model_name_temp = model_name
         if '|' in model_name:
             chunks = model_name.split('|')
             model_name_temp = chunks[0]
             provider = chunks[1]
             model_param_temp['provider'] = {'order': [provider]}
+        return model_name_temp, model_param_temp
 
+    async def chat_stream_async(self, model_name, history, model_param, client_param):
+        model_name_temp, model_param_temp = self.update_model_param(model_name, model_param)
+        
         async for chunk in super().chat_stream_async(model_name_temp, history, model_param_temp, client_param):
             yield chunk
 
+    async def chat_async(self, model_name, history, model_param, client_param):
+        model_name_temp, model_param_temp = self.update_model_param(model_name, model_param)
+        return await super().chat_async(model_name_temp, history, model_param_temp, client_param)
 
 if __name__ == '__main__':
     import asyncio

@@ -2,5 +2,5 @@
 /.idea
 __pycache__
 /venv
-/test*
+/test_data_topic_split_output*
 /google_client_auth.json

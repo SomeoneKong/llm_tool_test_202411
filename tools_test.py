@@ -362,7 +362,11 @@ async def test_main():
 
     # client, model_name, output_dir_model_name = Xunfei_Client(), "spark-max", 'spark-max'
     # client, model_name, output_dir_model_name = Xunfei_Client(), "spark-4.0", 'spark-4.0'
-
+    
+    # client, model_name, output_dir_model_name = OpenRouter_Client(), "meta-llama/llama-3.1-405b-instruct|Fireworks", 'openrouter-llama-3-1-405b-Fireworks'
+    # client, model_name, output_dir_model_name = OpenRouter_Client(), "meta-llama/llama-3.1-405b-instruct|Avian", 'openrouter-llama-3-1-405b-Avian'
+    client, model_name, output_dir_model_name = OpenRouter_Client(), "meta-llama/llama-3.1-405b-instruct|Lepton", 'openrouter-llama-3-1-405b-Lepton'
+    # client, model_name, output_dir_model_name = OpenRouter_Client(), "meta-llama/llama-3.1-405b-instruct|Together", 'openrouter-llama-3-1-405b-Together'
     parallel_num = 5
 
     sample_num = 1
